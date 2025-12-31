@@ -7,7 +7,18 @@ import os
 import requests
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://*.csb.app", 
+        "https://g6mgx7.csb.app",  # YOUR SANDBOX
+        "http://localhost:3000"
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True
+)
+
 
 # MongoDB
 client = AsyncIOMotorClient(os.getenv("MONGODB_URL"))
