@@ -28,9 +28,9 @@ async def startup_db_client():
             return
             
         client = AsyncIOMotorClient(mongo_uri)
-        db = client.get_default_database()  # Uses database from connection string OR 'test'
+        db = client["booksdb"]  # FIXED: Explicit database name
         await db.command("ping")
-        print(f"✅ Connected to MongoDB: {db.name}")
+        print(f"✅ Connected to MongoDB: booksdb")
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
 
