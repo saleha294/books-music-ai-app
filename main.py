@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
 import uvicorn
+import shutil
+from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from typing import Dict, Any, List
@@ -30,6 +33,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Create upload folders
+book_uploads = Path("book_uploads")
+book_uploads.mkdir(exist_ok=True)
+music_uploads = Path("music_uploads")
+music_uploads.mkdir(exist_ok=True)
+
+# Serve uploaded files publicly
+app.mount("/books/files", StaticFiles(directory="book_uploads"), name="book_files")
+app.mount("/music/files", StaticFiles(directory="music_uploads"), name="music_files")
 
 # Global DB client
 client = None
@@ -92,6 +105,41 @@ async def add_book(book: Book):
     except Exception as e:
         print(f"Books POST error: {e}")
         return {"error": "Failed to add book", "details": str(e)}
+
+# NEW: PDF Book Upload
+@app.post("/books/upload")
+async def upload_book(
+    title: str = Form(...),
+    author: str = Form(...),
+    genre: str = Form(...),
+    file: UploadFile = File(...)
+):
+    try:
+        if db is None:
+            return {"error": "Database not connected"}
+        
+        # Validate PDF
+        if not file.filename.lower().endswith('.pdf'):
+            return {"error": "Only PDF files allowed"}
+        
+        # Save PDF file
+        file_path = book_uploads / f"{title.replace(' ', '_')}_{file.filename}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Save to database with file URL
+        book_data = {
+            "title": title,
+            "author": author,
+            "genre": genre,
+            "file_url": f"/books/files/{file_path.name}",
+            "file_size": file.size
+        }
+        await db.books.insert_one(book_data)
+        return {"added": serialize_doc(book_data)}
+    except Exception as e:
+        print(f"Book upload error: {e}")
+        return {"error": "Failed to upload book", "details": str(e)}
 
 @app.get("/music")
 async def get_music():
