@@ -1,2 +1,2 @@
 # Books-Music-AI Backend
-FastAPI + Hugging Face AI Generator
+FastAPI + MongoDB + Hugging Face AI Images
