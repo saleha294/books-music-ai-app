@@ -163,6 +163,41 @@ async def add_music(music_item: Music):
         print(f"Music POST error: {e}")
         return {"error": "Failed to add music", "details": str(e)}
 
+@app.post("/music/upload")
+async def upload_music(
+    title: str = Form(...),
+    artist: str = Form(...),
+    genre: str = Form(...),
+    file: UploadFile = File(...)
+):
+    try:
+        if db is None:
+            return {"error": "Database not connected"}
+        
+        # Validate audio
+        if not file.filename.lower().endswith(('.mp3', '.wav', '.m4a')):
+            return {"error": "Only MP3, WAV, M4A files allowed"}
+        
+        # Save audio file
+        file_path = music_uploads / f"{title.replace(' ', '_')}_{file.filename}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Save to database with file URL
+        music_data = {
+            "title": title,
+            "artist": artist,
+            "genre": genre,
+            "file_url": f"/music/files/{file_path.name}",
+            "file_size": file.size
+        }
+        await db.music.insert_one(music_data)
+        return {"added": serialize_doc(music_data)}
+    except Exception as e:
+        print(f"Music upload error: {e}")
+        return {"error": "Failed to upload music", "details": str(e)}
+
+
 # RAILWAY PORT FIX
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
