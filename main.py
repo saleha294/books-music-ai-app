@@ -5,7 +5,7 @@ import os
 import uvicorn
 from motor.motor_asyncio import AsyncIOMotorClient
 
-app = FastAPI()  # MOVED UP - must exist before @app decorators
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,12 +28,11 @@ async def startup_db_client():
             return
             
         client = AsyncIOMotorClient(mongo_uri)
-        db = client["booksdb"]  # FIXED: Explicit database name
+        db = client["booksdb"]
         await db.command("ping")
         print(f"✅ Connected to MongoDB: booksdb")
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
-
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
@@ -57,31 +56,47 @@ async def root():
 
 @app.get("/books")
 async def get_books():
-    if db is None:
-        return {"error": "Database not connected"}
-    books = await db.books.find({}).to_list(100)
-    return books
+    try:
+        if db is None:
+            return {"error": "Database not connected"}
+        books = await db.books.find({}).to_list(100)
+        return books
+    except Exception as e:
+        print(f"Books GET error: {e}")
+        return {"error": "Failed to fetch books", "details": str(e)}
 
 @app.post("/books")
 async def add_book(book: Book):
-    if db is None:
-        return {"error": "Database not connected"}
-    await db.books.insert_one(book.dict())
-    return {"added": book.dict()}
+    try:
+        if db is None:
+            return {"error": "Database not connected"}
+        await db.books.insert_one(book.dict())
+        return {"added": book.dict()}
+    except Exception as e:
+        print(f"Books POST error: {e}")
+        return {"error": "Failed to add book", "details": str(e)}
 
 @app.get("/music")
 async def get_music():
-    if db is None:
-        return {"error": "Database not connected"}
-    music = await db.music.find({}).to_list(100)
-    return music
+    try:
+        if db is None:
+            return {"error": "Database not connected"}
+        music = await db.music.find({}).to_list(100)
+        return music
+    except Exception as e:
+        print(f"Music GET error: {e}")
+        return {"error": "Failed to fetch music", "details": str(e)}
 
 @app.post("/music")
 async def add_music(music_item: Music):
-    if db is None:
-        return {"error": "Database not connected"}
-    await db.music.insert_one(music_item.dict())
-    return {"added": music_item.dict()}
+    try:
+        if db is None:
+            return {"error": "Database not connected"}
+        await db.music.insert_one(music_item.dict())
+        return {"added": music_item.dict()}
+    except Exception as e:
+        print(f"Music POST error: {e}")
+        return {"error": "Failed to add music", "details": str(e)}
 
 # RAILWAY PORT FIX
 if __name__ == "__main__":
