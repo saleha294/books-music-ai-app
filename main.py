@@ -4,6 +4,23 @@ from pydantic import BaseModel
 import os
 import uvicorn
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
+from typing import Dict, Any, List
+
+# Fix ObjectId serialization globally
+def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert ObjectId to string for JSON serialization"""
+    if isinstance(doc, dict):
+        doc = doc.copy()
+        if '_id' in doc:
+            doc['id'] = str(doc['_id'])
+            del doc['_id']
+        return {k: serialize_doc(v) for k, v in doc.items()}
+    elif isinstance(doc, list):
+        return [serialize_doc(item) for item in doc]
+    elif isinstance(doc, ObjectId):
+        return str(doc)
+    return doc
 
 app = FastAPI()
 
@@ -60,7 +77,7 @@ async def get_books():
         if db is None:
             return {"error": "Database not connected"}
         books = await db.books.find({}).to_list(100)
-        return books
+        return serialize_doc(books)
     except Exception as e:
         print(f"Books GET error: {e}")
         return {"error": "Failed to fetch books", "details": str(e)}
@@ -82,7 +99,7 @@ async def get_music():
         if db is None:
             return {"error": "Database not connected"}
         music = await db.music.find({}).to_list(100)
-        return music
+        return serialize_doc(music)
     except Exception as e:
         print(f"Music GET error: {e}")
         return {"error": "Failed to fetch music", "details": str(e)}
