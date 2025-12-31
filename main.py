@@ -1,27 +1,24 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import requests
 
 app = FastAPI()
+
+# BULLETPROOF CORS - WORKS WITH EVERYTHING
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://*.csb.app", 
-        "https://g6mgx7.csb.app",  # YOUR SANDBOX
-        "http://localhost:3000"
-    ],
+    allow_origins=["*"],  # ALL DOMAINS
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=True
+    allow_credentials=True,
 )
 
-
 # MongoDB
-client = AsyncIOMotorClient(os.getenv("MONGODB_URL"))
+MONGODB_URL = os.getenv("MONGODB_URL")
+client = AsyncIOMotorClient(MONGODB_URL)
 db = client.booksdb
 books_col = db.books
 music_col = db.music
@@ -42,12 +39,12 @@ class Music(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "🚀 Books-Music-AI + MongoDB + HF Live!"}
+    return {"message": "🚀 Backend LIVE - CORS FIXED!"}
 
 @app.post("/books")
 async def add_book(book: Book):
     await books_col.insert_one(book.dict())
-    return book
+    return {"status": "Book added!", "book": book.dict()}
 
 @app.get("/books")
 async def get_books():
@@ -57,7 +54,7 @@ async def get_books():
 @app.post("/music")
 async def add_music(music: Music):
     await music_col.insert_one(music.dict())
-    return music
+    return {"status": "Music added!", "music": music.dict()}
 
 @app.get("/music")
 async def get_music():
@@ -69,8 +66,14 @@ async def generate_image(prompt: str):
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     payload = {"inputs": prompt}
     response = requests.post(HF_URL, headers=headers, json=payload)
-    return {"image_b64": str(response.content), "prompt": prompt}
+    if response.status_code == 200:
+        return {"image_b64": response.content, "prompt": prompt}
+    return {"error": "AI service busy, try again"}
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
