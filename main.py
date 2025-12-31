@@ -22,13 +22,18 @@ db = None
 async def startup_db_client():
     global client, db
     try:
-        client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
-        db = client.booksdb
-        # Test connection
+        mongo_uri = os.getenv("MONGODB_URI")
+        if not mongo_uri:
+            print("❌ MONGODB_URI environment variable not found")
+            return
+            
+        client = AsyncIOMotorClient(mongo_uri)
+        db = client.get_default_database()  # Uses database from connection string OR 'test'
         await db.command("ping")
-        print("✅ Connected to MongoDB")
+        print(f"✅ Connected to MongoDB: {db.name}")
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
